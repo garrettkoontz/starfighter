@@ -1,10 +1,10 @@
 # stockfighter
 
-FIXME: description
+A collection of code for stockfighter (http://www.stockfighter.io)
 
 ## Installation
 
-Download from http://example.com/FIXME.
+clone this responsitory then > lein repl
 
 ## Usage
 
@@ -24,13 +24,10 @@ FIXME: listing of options this app accepts.
 
 ...
 
-### Any Other Sections
-### That You Think
-### Might be Useful
-
 ## License
 
-Copyright © 2016 FIXME
+Copyright © 2016 Garrett Koontz
 
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+MIT License
+
+
