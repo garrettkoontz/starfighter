@@ -2,6 +2,7 @@
   (:require [clj-http.client :as client]
             [clojure.data.json :as json]
             [stockfighter.market]
+            [cljs.core.match :refer-macros [match]]
             )
   (:import [stockfighter.market Order]))
 
@@ -23,7 +24,7 @@
 
 
 
-(defn handle-new-level
+(defn handle-new-level!
   [body]
       (swap! level-data merge 
              (reduce 
@@ -40,7 +41,7 @@
                                       (str gm-url "/levels/" name) 
                                       {})) :key-fn keyword)]
     (if (:ok body)
-      (handle-new-level body)
+      (handle-new-level! body)
       (println (str  "level not started! Reason: " body))
       )
     ))
@@ -64,28 +65,68 @@
                            (exchange-and-stock exchange stock) {})) :key-fn keyword)))
 
 (defn add-order
-  [portfolio order]
-  (println order)
-  (println portfolio))
+  [order]
+  (println order))
 
 (defn order-stock
   "Takes an order record and executes it."
-  [order portfolio]
+  [order]
   (let [order-resp 
-        (json/read-str (:body 
-                        (with-auth-header 
-                          client/post
-                          (str (exchange-and-stock (:exchange order) (:stock order)) "/orders")
-                          {:body (json/write-str {:orderType (:type order), 
-                                                  :qty (:qty order), 
-                                                  :direction (:direction order), 
-                                                  :price (:price order), 
-                                                  :account (:account order)}) 
-                           :key-fn keyword
-                           }
-                          ))
-                       )]
-    (if (:id order-resp) (add-order order-resp) (:error order-resp))))
+        (:body 
+         (with-auth-header 
+           client/post
+           (str (exchange-and-stock (:exchange order) (:stock order)) "/orders")
+           {:body (json/write-str {:orderType (:type order), 
+                                   :qty (:qty order), 
+                                   :direction (:direction order), 
+                                   :price (:price order), 
+                                   :account (:account order)}) 
+            }
+           
+           )
+         )]
+    (if (:id order-resp) (add-order order-resp) (println (:error order-resp)))))
+
+(defn get-spread
+  ([]
+   (get-spread (->> @level-data :venues first) (->> @level-data :tickers first)))
+  ([exchange stock]
+   (let [order-book  (get-order-book exchange stock)]
+     (get-spread order-book)))
+  ([order-book]
+   (if (:ok order-book)
+     {:bid (->> order-book :bids first)
+      :ask (->> order-book :asks first)
+      :exchange (:venue order-book)
+      :symbol (:symbol order-book)
+      :time (:ts order-book)})
+     ))
+
+(defn beat-spread
+  ([amount]
+   (beat-spread amount (->> @level-data :venues first) (->> @level-data :tickers first) 50))
+  ([amount qty]
+   (beat-spread amount (->> @level-data :venues first) (->> @level-data :tickers first) qty))
+  ([amount exchange stock qty]
+   (let [amt (/ amount 2)]
+     (beat-spread amt exchange stock qty "buy")
+     (beat-spread amt exchange stock qty "sell")))
+  ([amount exchange stock qty side]
+   (let [spread (get-spread exchange stock)
+         {:keys [bid ask]} spread
+         _ (println spread)
+         new-ask (if (:price ask) (- (:price ask) amount) (+ amount (:price bid)))
+         new-bid (if (:price bid) (+ (:price bid) amount) (- (:price ask) amount))]
+     (order-stock (Order. (:account @level-data) 
+                          exchange 
+                          stock 
+                          qty 
+                          (cond
+                           (= side "buy") new-bid
+                           (= side "sell") new-ask)
+                          side
+                          "limit")))))
+
 
 (defn -main
   "Takes a level name and starts it."

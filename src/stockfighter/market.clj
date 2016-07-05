@@ -8,5 +8,5 @@
 
 (defrecord Portfolio [positions orders])
 
-(defrecord Order [account exchange stock qty price direction type portfolio])
+(defrecord Order [account exchange stock qty price direction type])
 
