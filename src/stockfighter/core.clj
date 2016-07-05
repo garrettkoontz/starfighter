@@ -66,26 +66,26 @@
 
 (defn add-order
   [order]
-  (println order))
+  (println (str "New Order: " order)))
 
 (defn order-stock
   "Takes an order record and executes it."
   [order]
   (let [order-resp 
-        (:body 
-         (with-auth-header 
-           client/post
-           (str (exchange-and-stock (:exchange order) (:stock order)) "/orders")
-           {:body (json/write-str {:orderType (:type order), 
-                                   :qty (:qty order), 
-                                   :direction (:direction order), 
-                                   :price (:price order), 
-                                   :account (:account order)}) 
-            }
-           
-           )
-         )]
-    (if (:id order-resp) (add-order order-resp) (println (:error order-resp)))))
+        (json/read-str (:body 
+           (with-auth-header 
+             client/post
+             (str (exchange-and-stock (:exchange order) (:stock order)) "/orders")
+             {:body (json/write-str {:orderType (:type order), 
+                                     :qty (:qty order), 
+                                     :direction (:direction order), 
+                                     :price (:price order), 
+                                     :account (:account order)}) 
+              }
+             
+             ) :key-fn keyword
+           ))]
+    (if (:id order-resp) (add-order order-resp) (println (str "Error: " order-resp)))))
 
 (defn get-spread
   ([]
